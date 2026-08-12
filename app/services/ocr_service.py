@@ -241,18 +241,26 @@ def extract_expiry_from_lines(line_items: list) -> tuple:
         prev_text = _normalize_text_for_dates(line_items[idx-1][1]) if idx > 0 else ""
         next_text = _normalize_text_for_dates(line_items[idx+1][1]) if idx < len(line_items) - 1 else ""
         
-        if (mfd_keywords.search(normalized_text) or 
-            mfd_keywords.search(prev_text) or 
-            mfd_keywords.search(next_text)):
-            logger.debug(f"Rejected EXP candidate due to MFD in context: {text} (context: {prev_text} | {next_text})")
+        # Explicit local indicator overrides context. If the line itself has MFD, reject it.
+        has_current_mfd = bool(mfd_keywords.search(normalized_text))
+        has_current_exp = bool(expiry_keywords.search(normalized_text))
+        
+        if has_current_mfd:
+            logger.debug(f"Rejected candidate (line has MFD keyword): {text}")
             continue
             
-        has_exp_keyword = (expiry_keywords.search(normalized_text) or
-                           expiry_keywords.search(prev_text) or
-                           expiry_keywords.search(next_text))
-                           
-        if has_exp_keyword:
-            logger.debug(f"Found high-confidence EXP date: {parsed} (line: {text}, context: {prev_text} | {next_text})")
+        if has_current_exp:
+            logger.debug(f"Found high-confidence EXP date (line has EXP keyword): {parsed} (line: {text})")
+            return parsed, conf
+            
+        # Check context only if line has no key words
+        if mfd_keywords.search(prev_text) or mfd_keywords.search(next_text):
+            logger.debug(f"Rejected candidate due to adjacent MFD context: {text} (context: {prev_text} | {next_text})")
+            continue
+            
+        has_adjacent_exp = (expiry_keywords.search(prev_text) or expiry_keywords.search(next_text))
+        if has_adjacent_exp:
+            logger.debug(f"Found high-confidence EXP date (adjacent EXP keyword): {parsed} (line: {text}, context: {prev_text} | {next_text})")
             return parsed, conf
 
     # Pass 2: Backup/Fallback to any date with no manufacturing keyword context
