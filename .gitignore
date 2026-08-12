@@ -1,0 +1,42 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Windows binaries (specifically Tesseract executables & DLLs in root)
+*.exe
+*.dll
+*.html
+*.zip
+doc/
+tessdata/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+python/
+
+# Database files
+database/
+*.db
+*.sqlite
+
+# Application logs & debug folders
+logs/
+debug_ocr/
+app/images/*
+!app/images/.gitkeep
+
+# Temporary/Scratch Files
+temp_*
+temp_small.jpg
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Android project/backup files in root
+New folder/
+New folder.zip
