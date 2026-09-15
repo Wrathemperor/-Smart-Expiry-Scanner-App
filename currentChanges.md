@@ -1,9 +1,9 @@
 # ShelfSense Current Changes
 
-## Current Task: Product Category Catalog, AI Description & Architecture Guardrails
-- **Guardrails**:
-  1. Sanitizer Fallback in both Kotlin and Python.
-  2. Hardcoded standardized Category Catalog across all layers.
-  3. Gateway-Client prompt and schema synchronization.
-- **Plan**: Detailed in `category_and_ocr_description_plan.md`.
-- **Status**: Planning updated, awaiting execution approval.
+## Completed Feature: Product Category Catalog & Clean AI Description
+- **Status**: Completed, verified (`BUILD SUCCESSFUL in 45s`), and committed to git (`1bb4007` & `047de3f`).
+- **Key Deliverables**:
+  - Constrained Gemini AI prompt to the standardized product category catalog (`Dairy`, `Produce`, `Meat`, `Pantry`, `Beverages`, `Pharmacy`, `Prepared Meals`, `Bakery`, `Other`).
+  - Extracted clean 1-line product descriptions and ingredient lists, replacing raw JSON in OCR labels.
+  - Implemented identical prompts, category normalizers, and sanitizer fallbacks in both `GeminiCloudService.kt` and `ocr_service.py`.
+  - Saved versioned APK: `apks/app-debug [category_catalog_and_clean_ocr_description].apk`.
