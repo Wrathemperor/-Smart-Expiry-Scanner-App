@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str=f"sqlite:///{BASE_DIR/'database'/'shelfsense.db'}"
     IMAGE_DIRECTORY: Path=BASE_DIR/"app"/"images"
     DEBUG: bool=True
+    S3_BUCKET_NAME: str="shelfsense-images-app"
 
     model_config = SettingsConfigDict(
         env_file=".env",

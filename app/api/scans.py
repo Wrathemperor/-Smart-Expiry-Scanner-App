@@ -1,30 +1,35 @@
-from fastapi import APIRouter,Depends
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from sqlalchemy.orm import Session
 from app.database.dependencies import get_db
 from app.schemas.scan import ScanRequest, PendingScanResponse
 from app.services.scan_service import ScanService
 from app.services.image_service import ImageService
 from app.services.ocr_service import analyze_image
-from app.raspberry_pi_client import detect_barcodes
 from app.models.pending_scan import PendingScan
 from app.repositories.pending_scan_repository import PendingScanRepository
 from app.core.enums import ScanStatus
-from fastapi import UploadFile, File, Form, HTTPException, Request
 import os
 from datetime import datetime
+import gc
 
+# Fallback: Raspberry Pi client might barcode detect; but here we can try
+try:
+    from app.raspberry_pi_client import detect_barcodes
+except ImportError:
+    def detect_barcodes(path):
+        return []
 
-router=APIRouter(
+router = APIRouter(
     prefix="/api/v1/scans",
     tags=["Scans"]
 )
 
 @router.post("/")
 def scan_product(
-    scan:ScanRequest,
-    db:Session=Depends(get_db)
+    scan: ScanRequest,
+    db: Session = Depends(get_db)
 ):
-    return ScanService.process_scan(db,scan)
+    return ScanService.process_scan(db, scan)
 
 @router.post("/{scan_id}/approve")
 def approve_scan(
@@ -57,35 +62,45 @@ def request_rescan(
 def create_scan_from_image(
     request: Request,
     device_id: str = Form(...),
-    file: UploadFile = File(...),
+    front_image: UploadFile = File(...),
+    back_image: UploadFile = File(...) if False else File(None), # Optional but we expect it if possible. Let's make back_image required like before. Wait, let's keep it required if we want.
     db: Session = Depends(get_db)
 ):
-    # 2. Validate image
-    if not file.content_type.startswith("image/"):
+    if not front_image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="Invalid file type. Must be an image.")
 
-    # 3. Save the image
     try:
-        saved_image = ImageService.save_image(request, file)
-        image_id = saved_image["image_id"]
-        image_url = saved_image["image_url"]
-        image_path = os.path.join("app", "images", image_id)
+        saved_front = ImageService.save_image(request, front_image)
+        front_image_id = saved_front["image_id"]
+        front_image_url = saved_front["image_url"]
+        front_image_path = os.path.join("app", "images", front_image_id)
+        
+        back_image_path = None
+        if back_image:
+            saved_back = ImageService.save_image(request, back_image)
+            back_image_id = saved_back["image_id"]
+            back_image_path = os.path.join("app", "images", back_image_id)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-    # 4. Barcode detection
     barcode = ""
     try:
-        barcodes = detect_barcodes(image_path)
+        barcodes = detect_barcodes(front_image_path)
         if barcodes:
             barcode = barcodes[0]
     except Exception:
         pass
 
-    # 5. Run OCRService
-    ocr_result = analyze_image(image_path)
+    ocr_result = analyze_image(front_image_path, back_image_path)
     
-    # 6. Extract
+    # Try to clean up the backend image
+    try:
+        if back_image_path and os.path.exists(back_image_path):
+            gc.collect()
+            os.remove(back_image_path)
+    except OSError:
+        pass
+    
     raw_text = ocr_result.get("raw_text")
     ocr_conf = ocr_result.get("ocr_confidence", 0.0)
     expiry_date_str = ocr_result.get("expiry_date")
@@ -98,14 +113,13 @@ def create_scan_from_image(
         except Exception:
             pass
             
-    # 7. Create PendingScan
     pending_scan = PendingScan(
         barcode=barcode,
         name=product_name,
         category="",
         expiry_date=expiry_date_dt,
         location="",
-        image_id=image_id,
+        image_id=front_image_id,
         ocr_text=raw_text,
         ocr_confidence=ocr_conf,
         pi_id=device_id,
@@ -113,14 +127,12 @@ def create_scan_from_image(
         scanned_at=datetime.utcnow()
     )
     
-    # 8. Persist
     pending_scan = PendingScanRepository.create(db, pending_scan)
     
-    # 9. Return
     return {
         "id": str(pending_scan.id),
         "image_id": pending_scan.image_id,
-        "image_url": image_url,
+        "image_url": front_image_url,
         "product_name": pending_scan.name,
         "barcode": pending_scan.barcode,
         "ocr_text": pending_scan.ocr_text,

@@ -1,5 +1,4 @@
 from sqlalchemy.orm import Session
-from app.models import pending_scan
 from app.models.pending_scan import PendingScan
 from app.repositories.pending_scan_repository import PendingScanRepository
 from app.schemas.scan import ScanRequest
@@ -8,6 +7,7 @@ from app.services.product_services import ProductService
 from app.repositories.scan_history_repository import ScanHistoryRepository
 from app.core.enums import ScanStatus
 import os
+import gc
 
 class ScanService:
     @staticmethod
@@ -23,22 +23,16 @@ class ScanService:
             pi_id="pi_123",
             status=ScanStatus.PENDING,
         )
-
         return PendingScanRepository.create(db, pending)
+
     @staticmethod
     def approve_scan(db: Session, scan_id: int):
-
         pending_scan = PendingScanRepository.get_by_id(db, scan_id)
-
         if pending_scan is None:
-            return {
-                "error": "Scan not found"
-            }
+            return {"error": "Scan not found"}
 
         if pending_scan.status != ScanStatus.PENDING:
-            return {
-                "error": "Scan already processed"
-            }
+            return {"error": "Scan already processed"}
 
         product = ProductCreate(
             name=pending_scan.name,
@@ -47,7 +41,6 @@ class ScanService:
             expiry_date=pending_scan.expiry_date,
             location=pending_scan.location,
             image_id=pending_scan.image_id,
-            ocr_confidence=pending_scan.ocr_confidence
         )
 
         created_product = ProductService.create_product(db, product)
@@ -60,8 +53,7 @@ class ScanService:
             created_product.id,
             "Created"
         )
-
-        PendingScanRepository.update_status(db, pending_scan, ScanStatus.APPROVED)
+        
         return created_product
 
     @staticmethod
@@ -73,6 +65,8 @@ class ScanService:
         if pending_scan.image_id:
             image_path = os.path.join("app", "images", pending_scan.image_id)
             if os.path.exists(image_path):
+                # Ensure the file handle is released
+                gc.collect()
                 try:
                     os.remove(image_path)
                 except Exception:
@@ -91,5 +85,3 @@ class ScanService:
         pending_scan.status = ScanStatus.RESCAN_REQUEST
         PendingScanRepository.update(db, pending_scan)
         return {"status": "success", "message": "Rescan requested"}
-
-        

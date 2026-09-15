@@ -6,9 +6,9 @@ from app.database.database import create_database
 from app.api.products import router as product_router
 from app.api.images import router as image_router
 from fastapi.staticfiles import StaticFiles
-from app.api.scans import router as scan_router
 from app.models.scan_history import ScanHistory
 from app.api.history import router as history_router
+from app.api.scans import router as scan_router
 from app.api.pending_scans import router as pending_scan_router
 
 # app.include_router(system_router)
@@ -27,19 +27,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-app.include_router(scan_router)
 app.include_router(system_router)
 app.include_router(product_router)
 app.include_router(image_router)
 app.include_router(history_router)
+app.include_router(scan_router)
 app.include_router(pending_scan_router)
 # def startup on_event("startup")
 
-app.mount(
-    "/images",
-    StaticFiles(directory="app/images"),
-    name="images"
-)
 
 @app.get("/")
 def root():

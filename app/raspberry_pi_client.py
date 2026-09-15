@@ -150,34 +150,21 @@ def compress_image(image_path: str, quality: int = 75) -> None:
         logger.warning("Could not compress image %s: %s", image_path, e)
 
 
-# OCR preprocessing and extraction have been centralized in app.services.ocr_service
-# Import the shared implementations so the Raspberry Pi client reuses the Gateway's OCR logic.
-try:
-    from app.services.ocr_service import preprocess_image_for_ocr, run_ocr_extract
-except Exception:
-    # Best-effort fallback: minimal preprocess that simply reads the image via OpenCV
-    def preprocess_image_for_ocr(image_path: str) -> 'cv2.Mat':
-        try:
-            import cv2
-        except Exception as e:
-            logger.error("OpenCV not available for OCR preprocessing fallback: %s", e)
-            raise
-        img = cv2.imread(str(image_path))
-        if img is None:
-            raise RuntimeError(f"Failed to read image for OCR: {image_path}")
-        return img
+# Minimal preprocess fallback since ocr_service is removed
+def preprocess_image_for_ocr(image_path: str):
+    try:
+        import cv2
+    except Exception as e:
+        logger.error("OpenCV not available for OCR preprocessing fallback: %s", e)
+        raise
+    img = cv2.imread(str(image_path))
+    if img is None:
+        raise RuntimeError(f"Failed to read image for OCR: {image_path}")
+    return img
 
-
-# Date parsing has been moved into app.services.ocr_service; the Raspberry Pi client
-# delegates expiry/date recognition to that centralized implementation.
-
-# Delegate OCR extraction to the centralized OCR service implementation
-try:
-    from app.services.ocr_service import run_ocr_extract
-except Exception:
-    def run_ocr_extract(image_path: str) -> dict:
-        logger.warning("run_ocr_extract not available (ocr_service missing); skipping OCR")
-        return {"name": None, "expiry_date": None, "confidence": 0.0}
+def run_ocr_extract(image_path: str) -> dict:
+    logger.warning("run_ocr_extract not available (ocr_service missing); skipping OCR")
+    return {"name": None, "expiry_date": None, "confidence": 0.0}
 
 
 def post_with_retries(session: requests.Session, url: str, files=None, json_data=None, headers=None,

@@ -2,14 +2,14 @@ from datetime import date
 from pydantic import BaseModel
 
 class ScanRequest(BaseModel):
-    name:str
-    category:str
-    barcode:str
-    expiry_date: date
-    location:str
-    image_id:str | None=None
-    ocr_confidence:float=0.0
-    scan_timestamp_ms: int
+    name: str
+    category: str
+    barcode: str
+    expiry_date: date | None = None
+    location: str
+    image_id: str | None = None
+    ocr_confidence: float = 0.0
+    scan_timestamp_ms: int = 0
 
 class PendingScanResponse(BaseModel):
     id: str
@@ -18,10 +18,10 @@ class PendingScanResponse(BaseModel):
     product_name: str
     barcode: str
     ocr_text: str | None = None
-    ocr_confidence: float
+    ocr_confidence: float = 0.0
     expiry_date_iso: str | None = None
     category: str
     location: str
-    scan_timestamp_ms: int
+    scan_timestamp_ms: int = 0
     pi_id: str
     status: str
