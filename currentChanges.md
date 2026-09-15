@@ -1,7 +1,11 @@
 # ShelfSense Current Changes
 
-## Current Task: Per-Item Custom Notification Timings & Demo-Day Guardrail
-- **Goal**: Enable users to configure custom expiration notification timings per item (e.g., 1d, 2d, 3d, 5d, 7d, 14d prior), with default mechanism (2d prior) for uncustomized items.
-- **Demo-Day Guardrail**: Included `onLongClick` developer trigger on the notification timing header/chips to bypass WorkManager/Doze mode and fire an instant live notification to the tray for evaluation panels.
-- **Plan**: Detailed in `custom_notification_timings_plan.md`.
-- **Status**: Planning complete with Demo-Day guardrail, ready for execution upon user approval.
+## Completed Feature: Per-Item Custom Notification Timings & Demo-Day Guardrail
+- **Status**: Completed, verified with Gradle (`BUILD SUCCESSFUL in 50s`), and committed to git (`07f1f53`).
+- **Key Deliverables**:
+  - `customAlertDaysBefore: Int?` added to `Product` and `ScanResult` entities.
+  - Room database upgraded to v4 (`AppDatabase.kt`).
+  - `NotificationHelper.kt` created for Android O+ notifications and instant Demo-Day developer test triggers.
+  - `ExpiryLogic.kt` & `ExpiryAlertWorker.kt` updated for custom threshold vs default 2-day reminder window.
+  - `ProductDetailDialog.kt` equipped with interactive timing selector chips and `onLongClick` live tray notification trigger.
+  - `InventoryScreen.kt` updated with notification timing picker in `AddEditProductDialog` and `🔔 {X}D ALERT` badges on `InventoryProductCard`.
