@@ -116,9 +116,9 @@ def create_scan_from_image(
     pending_scan = PendingScan(
         barcode=barcode,
         name=product_name,
-        category="",
+        category=ocr_result.get("category", "Pantry"),
         expiry_date=expiry_date_dt,
-        location="",
+        location="Fridge",
         image_id=front_image_id,
         ocr_text=raw_text,
         ocr_confidence=ocr_conf,
