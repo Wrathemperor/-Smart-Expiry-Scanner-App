@@ -51,3 +51,44 @@
 
 ## 10. Floating AI Recipe Generator
 - Main screen FAB, fallback offline generator, 1.8s theatrical delay.
+
+## 11. Dynamic Real-Time Analytics Dashboard & Indian Rupee (₹) Financial ROI
+- **Strict Indian Rupee (₹) Pricing**: Standardized all food valuations to ₹250 average value per item, completely removing dollar signs (`$`) and formatting all financial metrics in clean Indian currency style (e.g. `₹14,500`, `₹750` food loss, `₹1,250` at risk).
+- **Interactive Multi-Timeframe Filtering**: Added interactive Neo-Brutalist filter chips (`ALL TIME`, `THIS MONTH`, `30 DAYS`, `7 DAYS`) that dynamically recalculate all cards, charts, and metrics in real time.
+- **Background Threading (`.flowOn(Dispatchers.Default)`)**: All Room database flow combinations, calendar date groupings, category calculations, and financial arithmetic execute off the main thread to ensure 60fps stutter-free UI scrolling as inventory scales.
+- **Dynamic Category Waste & Rescue Breakdown**: Real-time Room aggregations across 8+ product categories with dynamic rescue progress bars, item counts, and status badges (`100% ZERO-WASTE`, `HIGH RESCUE RATE`, `ATTENTION NEEDED`).
+- **Interactive Activity Bar Chart**: Dynamic periodic consumption/loss activity chart with peak detection and tap-to-inspect bar breakdown.
+- **Zero-Waste AI Insights**: Added dynamic intelligent cards highlighting items at risk in the next 48–72h, top rescued categories, and eco milestones.
+- **Versioned APK**: `apks/app-debug [dynamic_analytics_and_rupee_pricing].apk`.
+
+## 12. Multi-Model Automatic Fallback on HTTP 503 & API Overload (Gemini 3.8 Flash & 3.7 Flash)
+- **2-Model Fallback Hierarchy**: Constrained candidate list strictly to `gemini-3.8-flash` (Primary) -> `gemini-3.7-flash` (Secondary).
+- **Silent 503 & Transient Error Auto-Failover**: When an API request encounters HTTP 503 (Service Unavailable / Overloaded), 429 (Rate-limited), 5xx, or network timeouts, the system automatically logs a diagnostic warning and retries with the next model without displaying error popups.
+- **Synchronized Full-Stack Coverage**: Applied across both Android client (`GeminiCloudService.kt` for OCR vision and recipe generation) and Python Gateway Server (`app/services/ocr_service.py`).
+- **Last-Model Error Isolation**: Error messages or offline fallback states are triggered only when all candidate models have been exhausted.
+- **Versioned APK**: `apks/app-debug [gemini_multi_model_503_fallback].apk`.
+
+## 13. Dynamic Gemini API Key Configuration & Presentation Masking
+- **Secure Password Masking**: API Key input in `ProfileSettingsDialog.kt` defaults to `PasswordVisualTransformation()` (`••••••••••••`) for secure demonstration in live presentations.
+- **One-Touch Paste**: Integrated `LocalClipboardManager.current` with `Icons.Default.ContentPaste` for instant key updates.
+- **Persistent DataStore & Header Injection**: Persisted in `GatewaySettingsRepository` and hot-injected into outgoing requests (`AuthInterceptor`) and runtime vision calls (`GeminiCloudService`).
+- **Versioned APK**: `apks/app-debug [dynamic_gemini_api_key_settings].apk`.
+
+## 14. Automatic Model Auto-Discovery Engine & Guardrails
+- **Live Google API Model Auto-Discovery (`GET /v1beta/models`)**: Dynamically queries Google's model catalog to discover which models are enabled on the active API key with `supportedGenerationMethods.contains("generateContent")`.
+- **Asynchronous Pre-fetching (Zero First-Scan Latency)**: Model discovery executes in the background on app launch in `MainViewModel` and upon saving settings, pre-warming the model cache before the user reaches the scan screen.
+- **Smart Flash Priority Ranking Heuristic**: Automatically sorts candidates: Clean Flash models (`2.5-flash`, `2.0-flash`, `1.5-flash`, `3.8-flash`, etc.) > Flash-Lite > Pro > Deprioritizes thinking/preview/experimental models.
+- **Strict Prefix Hygiene**: Strips `models/` prefix early to ensure clean endpoint construction (`models/$modelName:generateContent`).
+- **Dynamic Pin Invalidation on 429/503 + 60s Cooldown**: When a pinned model encounters HTTP 429 (quota exhausted), 503 (overloaded), 404, or transient error, the pin is immediately cleared, the model is placed on a 60-second cooldown, and the engine rotates smoothly to the next candidate.
+- **UI Hardening in ScanScreen**: Error messages in queued scan cards and offline alert cards enforce `Modifier.weight(1f)`, `maxLines = 2/3`, and `overflow = TextOverflow.Ellipsis`.
+- **Versioned APK**: `apks/app-debug [automatic_model_discovery_and_guardrails].apk`.
+
+## 15. Real-World Temporal Grounding & Expiry Year Normalizer
+- **Dynamic Real-World Temporal Prompting**: Injected today's dynamic date (`todayIso`) and current year (`currentYear`) into the Gemini Vision system instruction across Android (`GeminiCloudService.kt`) and Python Gateway (`ocr_service.py`), eliminating 2025 hallucinations.
+- **2-Digit & Missing Year Disambiguation**: Explicit prompt heuristics instruct Gemini to expand 2-digit years (`'26'` -> `'2026'`) and infer missing-year dates (`'18 OCT'`, `'25/11'`) relative to the current anchor date.
+- **Smart Temporal Post-Processing Normalizer**: If an extracted expiry date has a past year (e.g. 2025) without explicit historical packaging context, `parseDateString` and Python normalizer automatically promote the year to the active calendar cycle (2026/2027), ensuring newly scanned food items are never erroneously marked as expired.
+- **Versioned APK**: `apks/app-debug [scan_year_temporal_grounding_fix].apk`.
+
+
+
+

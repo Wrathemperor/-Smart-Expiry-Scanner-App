@@ -1,15 +1,8 @@
-# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / cache files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Windows binaries (specifically Tesseract executables & DLLs in root)
-*.exe
-*.dll
-*.html
-*.zip
-doc/
-tessdata/
+.pytest_cache/
 
 # Virtual Environments
 venv/
@@ -18,25 +11,55 @@ env/
 ENV/
 python/
 
-# Database files
-database/
+# Environment Variables & Secrets
+.env
+.env.*
+!.env.example
+
+# Editor & Tooling configurations
+.vscode/
+.idea/
+.codeatlas/
+*.swp
+*.swo
+
+# Database files (scoped to root /database directory to allow app/database/ source code)
+/database/
 *.db
 *.sqlite
+*.sqlite3
 
-# Application logs & debug folders
-logs/
-debug_ocr/
-app/images/*
-!app/images/.gitkeep
+# Logs & Debugging directories
+/logs/
+*.log
+/debug_ocr/
 
-# Temporary/Scratch Files
+# Application Image Uploads (preserve folder structure with .gitkeep)
+/app/images/*
+!/app/images/.gitkeep
+
+# Mobile application artifacts & backups
+/apks/
+*.apk
+/New folder/
+/New folder.zip
+.gradle/
+local.properties
+
+# Windows binaries & Tesseract artifacts in root
+*.exe
+*.dll
+*.1.html
+*.5.html
+*.zip
+/doc/
+/tessdata/
+
+# Temporary / Scratch Files
 temp_*
 temp_small.jpg
 
 # OS-specific files
 .DS_Store
 Thumbs.db
-
-# Android project/backup files in root
-New folder/
-New folder.zip
+desktop.ini
