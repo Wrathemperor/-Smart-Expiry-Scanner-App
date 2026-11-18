@@ -36,7 +36,6 @@ Install the server dependencies:
 
 ```bash
 pip install -r requirements.txt
-pip install pydantic-settings requests
 ```
 
 `app/requirements.txt` is a larger environment export. Use it instead if you need the full OCR, AWS, and Raspberry Pi toolchain.
