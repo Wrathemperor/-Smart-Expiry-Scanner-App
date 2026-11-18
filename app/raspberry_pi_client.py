@@ -78,18 +78,20 @@ logger.setLevel(logging.INFO)
 # Console handler
 ch = logging.StreamHandler()
 ch.setLevel(logging.INFO)
-# Rotating file handler
-fh = RotatingFileHandler(LOGS_DIR / "client.log", maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8")
-fh.setLevel(logging.INFO)
-
 formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s")
 ch.setFormatter(formatter)
-fh.setFormatter(formatter)
 
-# Avoid duplicate handlers if module reloaded
 if not logger.handlers:
     logger.addHandler(ch)
+
+# Rotating file handler (best-effort)
+try:
+    fh = RotatingFileHandler(LOGS_DIR / "client.log", maxBytes=5 * 1024 * 1024, backupCount=5, encoding="utf-8", delay=True)
+    fh.setLevel(logging.INFO)
+    fh.setFormatter(formatter)
     logger.addHandler(fh)
+except Exception:
+    pass
 
 
 def capture_image(output_path: str, width: int = 640, height: int = 480, timeout: float = 2.0) -> str:

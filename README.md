@@ -1,222 +1,120 @@
-# ShelfSense — Smart Expiry Scanner & Inventory Gateway Server
+# ShelfSense Gateway
 
-[![Python 3.10+](https://img.shields.io/badge/Python-3.10%2B-blue.svg?logo=python)](https://www.python.org/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110%2B-009688.svg?logo=fastapi)](https://fastapi.tiangolo.com/)
-[![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0%2B-red.svg)](https://www.sqlalchemy.org/)
-[![Google Gemini](https://img.shields.io/badge/AI-Google%20Gemini%20Vision-orange.svg?logo=google)](https://ai.google.dev/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+The ShelfSense Gateway is the FastAPI service used by the ShelfSense app and Raspberry Pi scanners. It accepts product images and scan data, stores review items in SQLite, exposes the inventory API, and serves a small admin dashboard for reviewing scans.
 
-**ShelfSense Gateway Server** is a high-performance FastAPI backend designed for automated pantry and grocery expiry tracking. It orchestrates multi-modal edge and mobile clients, processes food packaging imagery through advanced Vision AI models (Google Gemini Vision and AWS Bedrock Nova Lite), enforces strict temporal grounding to disambiguate expiry dates, and manages inventory, pending review queues, and scan histories.
+Image OCR currently uses Google Gemini. Uploaded images are kept on the gateway and are also uploaded to S3 when a working AWS configuration is available; local storage remains the fallback.
 
----
+## What is in this repository
 
-## Architecture Overview
+- `app/` - FastAPI application, database models, repositories, OCR, image handling, and the Raspberry Pi client.
+- `app/api/admin.py` - browser dashboard and admin scan endpoints.
+- `scripts/pi_push_scan.py` - small Pi script for one-shot, loop, or GPIO-triggered image uploads.
+- `raspberry_pi_setup.md` - setup and systemd instructions for the background Pi client.
+- `HARDWARE_SETUP_GUIDE.md` - end-to-end hardware and demo setup.
+- `test/fixtures/` - sample images for OCR checks.
+- `.env.example` - starting point for local configuration.
 
-```
-                                +---------------------------+
-                                |  ShelfSense Android App   |
-                                +-------------+-------------+
-                                              |  HTTP / REST
-                                              v
-+-----------------------+       +-------------+-------------+       +------------------------+
-|  Raspberry Pi Client  | ----> |   ShelfSense Gateway      | ----> |  Google Gemini Vision  |
-|  (USB/Pi Cam + ZBar)  |       |   (FastAPI Backend)       |       |  (or AWS Bedrock Nova) |
-+-----------------------+       +-------------+-------------+       +------------------------+
-                                              |
-                                              +----> SQLite Database (`database/shelfsense.db`)
-                                              +----> Local / S3 Image Storage
-```
+## Run the gateway locally
 
----
-
-## Key Features
-
-- **Multi-Modal Vision AI Extraction**:
-  - Dynamically discovers and auto-ranks Google Gemini Vision models (`gemini-2.5-flash`, `gemini-2.0-flash`, `gemini-1.5-flash`, etc.).
-  - Automatic failover and 60-second cooldown on HTTP 429/503 errors.
-  - Multi-provider support with fallback to **AWS Bedrock Nova Lite**.
-- **Temporal Grounding & Date Normalization**:
-  - Injects dynamic anchor dates (`todayIso`) to prevent historical year hallucinations.
-  - Automatically parses missing-year dates (`"18 OCT"`) and 2-digit years (`"'26'"` -> `"2026"`).
-  - Normalizes product categories into standardized catalogs (`Dairy`, `Produce`, `Meat`, `Pantry`, `Beverages`, `Pharmacy`, `Prepared Meals`, `Bakery`, `Other`).
-- **Edge Client Integration (Raspberry Pi)**:
-  - Automated continuous scanning with OpenCV camera capture and ZBar barcode decoding.
-  - Offline scan queue with automatic sync upon network reconnection.
-- **Dual Queue Scanning System**:
-  - Direct scan ingestion for fully automated workflows.
-  - Pending review queue with approval/rejection endpoints for administrative control.
-- **Structured Data Persistence**:
-  - Relational persistence powered by SQLAlchemy 2.0 with SQLite.
-  - Dedicated repositories and models for products, scan history, and pending scans.
-
----
-
-## Project Structure
-
-```
-gateway-server/
-├── app/
-│   ├── api/                    # FastAPI route controllers
-│   │   ├── history.py          # Scan history endpoints
-│   │   ├── images.py           # Image upload and serving
-│   │   ├── notification.py     # Expiry notification endpoints
-│   │   ├── pending_scans.py    # Pending review queue endpoints
-│   │   ├── products.py         # Inventory product CRUD
-│   │   ├── scans.py            # Automated scan ingestion
-│   │   └── system.py           # Gateway status & health checks
-│   ├── core/                   # Core configuration and enums
-│   │   ├── config.py           # Pydantic environment settings
-│   │   ├── enums.py            # Enumeration types
-│   │   └── loggin.py           # Logging configuration
-│   ├── database/               # Database engine and sessions
-│   │   ├── base.py             # Declarative base
-│   │   ├── database.py         # Table creation helpers
-│   │   ├── dependencies.py     # FastAPI db session dependencies
-│   │   └── session.py          # SQLAlchemy session maker
-│   ├── models/                 # SQLAlchemy ORM models
-│   │   ├── pending_scan.py     # Pending scan entity
-│   │   ├── products.py         # Product entity
-│   │   └── scan_history.py     # Scan history log entity
-│   ├── repositories/           # Data access layer
-│   ├── schemas/                # Pydantic request/response schemas
-│   ├── services/               # Business logic & AI services
-│   │   ├── image_service.py    # Image storage & resizing
-│   │   ├── ocr_service.py      # Gemini Vision & OCR extraction
-│   │   ├── product_services.py # Product business logic
-│   │   └── scan_service.py     # Scan processing logic
-│   ├── main.py                 # FastAPI application entrypoint
-│   ├── check_pi_dependencies.py# Raspberry Pi system health validator
-│   ├── raspberry_pi_client.py  # Daemon client for Raspberry Pi hardware
-│   └── test_bedrock.py         # AWS Bedrock integration test
-├── test/
-│   └── fixtures/               # Test images for OCR validation
-├── .env.example                # Sample environment configuration
-├── .gitignore                  # Git ignore rules
-├── currentChanges.md           # Implementation change log
-├── raspberry_pi_setup.md       # Comprehensive Raspberry Pi setup guide
-└── requirements.txt            # Python dependencies
-```
-
----
-
-## Getting Started
-
-### 1. Prerequisites
-- **Python 3.10+**
-- **pip** package manager
-- (Optional) Google Gemini API Key or AWS credentials with Bedrock access.
-
-### 2. Installation
-
-Clone the repository and navigate into the project directory:
+Requirements: Python 3.10 or newer.
 
 ```bash
-git clone https://github.com/Wrathemperor/-Smart-Expiry-Scanner-App.git
-cd -Smart-Expiry-Scanner-App
+python -m venv .venv
 ```
 
-Create and activate a virtual environment:
+Activate the environment:
 
 ```bash
-# On Linux/macOS
-python3 -m venv venv
-source venv/bin/activate
+# macOS/Linux
+source .venv/bin/activate
 
-# On Windows (PowerShell)
-python -m venv venv
-.\venv\Scripts\Activate.ps1
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
 ```
 
-Install dependencies:
+Install the server dependencies:
 
 ```bash
 pip install -r requirements.txt
+pip install pydantic-settings requests
 ```
 
-### 3. Environment Configuration
+`app/requirements.txt` is a larger environment export. Use it instead if you need the full OCR, AWS, and Raspberry Pi toolchain.
 
-Copy the example environment file:
+Copy the example configuration and set the values you need:
 
 ```bash
 cp .env.example .env
 ```
 
-Edit `.env` to configure your API keys and provider:
+At minimum, make `GEMINI_API_KEY` available to the process. For example:
 
-```env
-# Google Gemini Vision API Key (recommended)
-GEMINI_API_KEY=your_gemini_api_key_here
+```bash
+# macOS/Linux
+export GEMINI_API_KEY="your-key"
 
-# OCR Provider: 'gemini' or 'bedrock'
-OCR_PROVIDER=gemini
-
-# AWS Bedrock Configuration (if OCR_PROVIDER=bedrock)
-AWS_REGION=ap-south-1
-BEDROCK_MODEL_ID=amazon.nova-lite-v1:0
-
-# Database Configuration
-DATABASE_URL=sqlite:///./database/shelfsense.db
+# Windows PowerShell
+$env:GEMINI_API_KEY = "your-key"
 ```
 
-### 4. Running the Server
-
-Start the FastAPI gateway using Uvicorn:
+The gateway uses SQLite by default and creates the database on startup. To run it:
 
 ```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The server will initialize the SQLite database automatically on startup and will be accessible at `http://localhost:8000`.
+Open [http://localhost:8000/docs](http://localhost:8000/docs) for the generated API documentation or [http://localhost:8000/admin](http://localhost:8000/admin) for the review dashboard.
 
----
+The dashboard defaults are `admin` / `admin123`. Set `ADMIN_USERNAME`, `ADMIN_PASSWORD`, and `SECRET_KEY` before using the gateway outside a local demo.
 
-## Interactive API Documentation
+## API surface
 
-Once running, interactive documentation is available directly in your browser:
+All API routes use the `/api/v1` prefix.
 
-- **Swagger UI**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **ReDoc**: [http://localhost:8000/redoc](http://localhost:8000/redoc)
+| Method | Route | Purpose |
+| --- | --- | --- |
+| `GET` | `/` | Basic gateway response and links to the dashboard and docs. |
+| `GET` | `/api/v1/system/status` | Gateway health response. |
+| `POST` | `/api/v1/images/upload` | Store an image and return its image id and URL. |
+| `POST` | `/api/v1/scans/from-image` | Upload a front image, optionally a back image, run OCR, and add a pending scan. |
+| `POST` | `/api/v1/scans/` | Add a scan from structured JSON. |
+| `GET` | `/api/v1/scans/pending` | List scans waiting for review. |
+| `POST` | `/api/v1/scans/{id}/approve` | Move a pending scan into inventory. |
+| `POST` | `/api/v1/scans/{id}/reject` | Reject a pending scan. |
+| `POST` | `/api/v1/scans/{id}/rescan` | Request another scan. |
+| `GET`, `POST`, `PUT`, `DELETE` | `/api/v1/products` | Manage inventory products. |
+| `GET` | `/api/v1/history` | Read scan history. |
 
----
+The dashboard also uses `/api/v1/admin/login`, `/api/v1/admin/stats`, `/api/v1/admin/scans`, and `/api/v1/admin/upload-test`.
 
-## API Endpoints Reference
+## Raspberry Pi client
 
-| Category | Method | Endpoint | Description |
-| :--- | :--- | :--- | :--- |
-| **System** | `GET` | `/` | Health check confirmation |
-| | `GET` | `/api/v1/system/status` | Gateway and Pi connection health |
-| **Products** | `GET` | `/api/v1/products/` | List all pantry inventory items |
-| | `POST` | `/api/v1/products/` | Create a new product record |
-| | `GET` | `/api/v1/products/{id}` | Retrieve specific product details |
-| | `PUT` | `/api/v1/products/{id}` | Update product details |
-| | `DELETE` | `/api/v1/products/{id}` | Delete a product from inventory |
-| **Images** | `POST` | `/api/v1/images/upload` | Upload food packaging image |
-| | `GET` | `/api/v1/images/{filename}` | Retrieve uploaded packaging image |
-| **Scans** | `POST` | `/api/v1/scans/` | Ingest scan payload from Pi or app |
-| **Pending Scans** | `GET` | `/api/v1/pending-scans/` | List scans waiting for manual review |
-| | `POST` | `/api/v1/pending-scans/` | Submit item to pending queue |
-| | `POST` | `/api/v1/pending-scans/{id}/approve` | Approve scan and insert into inventory |
-| | `POST` | `/api/v1/pending-scans/{id}/reject` | Reject and dismiss pending scan |
-| **History** | `GET` | `/api/v1/history/` | View historical scan and action logs |
+For the full background client, including local retry storage and systemd setup, read [raspberry_pi_setup.md](raspberry_pi_setup.md).
 
----
+The standalone pusher is useful for a quick hardware test:
 
-## Raspberry Pi Edge Scanner
+```bash
+python scripts/pi_push_scan.py \
+  --gateway http://<GATEWAY_IP>:8000 \
+  --device-id pi-kitchen-01
+```
 
-To deploy an edge camera scanner on a Raspberry Pi:
+It can also scan continuously or use a GPIO button:
 
-1. Refer to [raspberry_pi_setup.md](raspberry_pi_setup.md) for full hardware, dependency, and systemd service instructions.
-2. Validate system dependencies:
-   ```bash
-   python -m app.check_pi_dependencies
-   ```
-3. Run the client daemon:
-   ```bash
-   python -m app.raspberry_pi_client --gateway http://<GATEWAY_IP>:8000 --device-id pi-kitchen-01 --interval 30
-   ```
+```bash
+python scripts/pi_push_scan.py --gateway http://<GATEWAY_IP>:8000 --loop --interval 10
+python scripts/pi_push_scan.py --gateway http://<GATEWAY_IP>:8000 --gpio-button 17
+```
 
----
+For the physical wiring, camera setup, and demo checklist, use [HARDWARE_SETUP_GUIDE.md](HARDWARE_SETUP_GUIDE.md).
 
-## License
+## Storage
 
-This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
+- SQLite defaults to `database/shelfsense.db`.
+- Images default to `app/images/` and are served at `/images/{image_id}`.
+- If S3 credentials and `S3_BUCKET_NAME` are available, image uploads also receive an S3 presigned URL.
+- The database, local uploads, logs, and `.env` are ignored by Git.
+
+## Development notes
+
+The application creates its tables and image directory during startup. There is no migration framework in this repository, so schema changes should be handled deliberately when an existing database is in use.

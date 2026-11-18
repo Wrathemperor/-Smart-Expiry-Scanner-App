@@ -1,23 +1,26 @@
+import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI,APIRouter,UploadFile,File
+from fastapi import FastAPI, APIRouter, UploadFile, File
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import RedirectResponse
+
 from app.api.system import router as system_router
 from app.core.config import settings
 from app.database.database import create_database
 from app.api.products import router as product_router
 from app.api.images import router as image_router
-from fastapi.staticfiles import StaticFiles
 from app.models.scan_history import ScanHistory
 from app.api.history import router as history_router
 from app.api.scans import router as scan_router
 from app.api.pending_scans import router as pending_scan_router
-
-# app.include_router(system_router)
+from app.api.admin import router as admin_router
 
 @asynccontextmanager
-async def lifespan(app:FastAPI):
+async def lifespan(app: FastAPI):
     print("Creating database...")
     create_database()
-    print("Database created.")
+    os.makedirs(settings.IMAGE_DIRECTORY, exist_ok=True)
+    print("Database and image storage directory initialized.")
     yield
 
 app = FastAPI(
@@ -27,19 +30,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# Ensure image directory exists before mounting static files
+os.makedirs(settings.IMAGE_DIRECTORY, exist_ok=True)
+app.mount("/images", StaticFiles(directory=str(settings.IMAGE_DIRECTORY)), name="images")
+
+app.include_router(admin_router)
 app.include_router(system_router)
 app.include_router(product_router)
 app.include_router(image_router)
 app.include_router(history_router)
 app.include_router(scan_router)
 app.include_router(pending_scan_router)
-# def startup on_event("startup")
-
 
 @app.get("/")
 def root():
     return {
-        "message": f"{settings.APP_NAME} is running!!!."
+        "message": f"{settings.APP_NAME} is running.",
+        "admin_dashboard": "/admin",
+        "docs": "/docs",
+        "version": settings.APP_VERSION
     }
 
 

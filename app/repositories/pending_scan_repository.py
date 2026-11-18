@@ -11,8 +11,12 @@ class PendingScanRepository:
         return pending_scan
 
     @staticmethod
+    def get_all(db: Session):
+        return db.query(PendingScan).order_by(PendingScan.scanned_at.desc()).all()
+
+    @staticmethod
     def get_all_pending(db: Session):
-        return db.query(PendingScan).filter(PendingScan.status == ScanStatus.PENDING).all()
+        return db.query(PendingScan).filter(PendingScan.status == ScanStatus.PENDING).order_by(PendingScan.scanned_at.desc()).all()
 
     @staticmethod
     def get_by_id(db: Session, pending_scan_id: int):

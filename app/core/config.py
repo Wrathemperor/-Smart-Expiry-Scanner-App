@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     IMAGE_DIRECTORY: Path=BASE_DIR/"app"/"images"
     DEBUG: bool=True
     S3_BUCKET_NAME: str="shelfsense-images-app"
+    ADMIN_USERNAME: str="admin"
+    ADMIN_PASSWORD: str="admin123"
+    SECRET_KEY: str="shelfsense-secret-admin-key-2026"
 
     model_config = SettingsConfigDict(
         env_file=".env",
