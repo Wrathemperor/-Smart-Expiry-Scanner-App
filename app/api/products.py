@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends
 from sqlalchemy.orm import Session
 from app.database.dependencies import get_db
-from app.schemas.product import ProductCreate,ProductResponse,ProductUpdate
+from app.schemas.product import ProductCreate,ProductResponse,ProductUpdate,ProductSyncItem,ProductSyncResponse
 from app.services.product_services import ProductService
 
 router =APIRouter(
@@ -29,6 +29,13 @@ def get_product(
     db:Session=Depends(get_db),
 ):
     return ProductService.get_products(db)
+
+@router.post("/sync", response_model=ProductSyncResponse)
+def sync_products(
+    products: list[ProductSyncItem],
+    db: Session = Depends(get_db),
+):
+    return ProductService.sync_products(db, products)
 
 
 @router.get(

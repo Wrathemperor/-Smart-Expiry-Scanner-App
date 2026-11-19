@@ -29,6 +29,10 @@ class ProductRepository:
     def get_by_id(db:Session,product_id:int):
         return db.query(Product).filter(Product.id==product_id).first()
 
+    @staticmethod
+    def get_by_barcode(db:Session, barcode:str):
+        return db.query(Product).filter(Product.barcode == barcode).first()
+
 
     # @staticmethod
     # def update(
@@ -70,4 +74,3 @@ class ProductRepository:
     
 
 
-    

@@ -13,6 +13,19 @@ class ProductBase(BaseModel):
 class ProductCreate(ProductBase):
     pass
 
+class ProductSyncItem(BaseModel):
+    client_id: str
+    device_id: str
+    name: str
+    category: str
+    barcode: str = ""
+    expiry_date: date
+    location: str = "Fridge"
+    image_id: str | None = None
+
+class ProductSyncResponse(BaseModel):
+    synced: int
+
 class ProductUpdate(BaseModel):
     name:str|None=None
     category:str|None=None
