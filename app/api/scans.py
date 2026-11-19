@@ -62,6 +62,7 @@ def request_rescan(
 def create_scan_from_image(
     request: Request,
     device_id: str = Form(...),
+    user_id: str = Form("default-user"),
     front_image: UploadFile = File(...),
     back_image: UploadFile = File(...) if False else File(None), # Optional but we expect it if possible. Let's make back_image required like before. Wait, let's keep it required if we want.
     db: Session = Depends(get_db)
@@ -70,14 +71,14 @@ def create_scan_from_image(
         raise HTTPException(status_code=400, detail="Invalid file type. Must be an image.")
 
     try:
-        saved_front = ImageService.save_image(request, front_image)
+        saved_front = ImageService.save_image(request, front_image, user_id=user_id, device_id=device_id)
         front_image_id = saved_front["image_id"]
         front_image_url = saved_front["image_url"]
         front_image_path = os.path.join("app", "images", front_image_id)
         
         back_image_path = None
         if back_image:
-            saved_back = ImageService.save_image(request, back_image)
+            saved_back = ImageService.save_image(request, back_image, user_id=user_id, device_id=device_id)
             back_image_id = saved_back["image_id"]
             back_image_path = os.path.join("app", "images", back_image_id)
     except Exception as e:

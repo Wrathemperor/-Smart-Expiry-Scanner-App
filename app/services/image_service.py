@@ -2,6 +2,7 @@ import os
 import uuid
 import shutil
 import logging
+import re
 from pathlib import Path
 from fastapi import UploadFile, Request, HTTPException
 from app.core.config import settings
@@ -10,13 +11,19 @@ logger = logging.getLogger(__name__)
 
 class ImageService:
     @staticmethod
-    def save_image(request: Request, file: UploadFile):
-        os.makedirs(settings.IMAGE_DIRECTORY, exist_ok=True)
+    def save_image(request: Request, file: UploadFile, user_id: str = "default-user", device_id: str = "unknown-device"):
+        def safe_part(value: str) -> str:
+            value = re.sub(r"[^A-Za-z0-9_.-]+", "_", value.strip())
+            return value[:80] or "unknown"
+
+        folder = Path(settings.IMAGE_DIRECTORY) / safe_part(user_id) / safe_part(device_id)
+        folder.mkdir(parents=True, exist_ok=True)
         extension = os.path.splitext(file.filename)[1] if file.filename else ".jpg"
         if not extension:
             extension = ".jpg"
         image_id = f"{uuid.uuid4()}{extension}"
-        local_path = os.path.join(str(settings.IMAGE_DIRECTORY), image_id)
+        relative_image_id = f"{safe_part(user_id)}/{safe_part(device_id)}/{image_id}"
+        local_path = os.path.join(str(settings.IMAGE_DIRECTORY), relative_image_id)
 
         # 1. Always save a local copy for immediate OCR processing and offline serving
         try:
@@ -30,7 +37,7 @@ class ImageService:
 
         # Default local URL
         base_url = str(request.base_url).rstrip("/")
-        image_url = f"{base_url}/images/{image_id}"
+        image_url = f"{base_url}/images/{relative_image_id}"
 
         # 2. Upload to AWS S3 if credentials and bucket are available
         try:
@@ -43,7 +50,7 @@ class ImageService:
             s3_client.upload_fileobj(
                 file.file,
                 bucket_name,
-                image_id,
+                relative_image_id,
                 ExtraArgs={"ContentType": file.content_type or "image/jpeg"}
             )
             # Generate presigned URL (valid for 7 days)
@@ -58,7 +65,7 @@ class ImageService:
             logger.warning(f"S3 upload bypassed/failed, falling back to local storage URL: {s3_err}")
 
         return {
-            "image_id": image_id,
+            "image_id": relative_image_id,
             "filename": file.filename,
             "image_url": image_url,
             "local_path": local_path

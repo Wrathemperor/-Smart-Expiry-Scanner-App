@@ -1,6 +1,7 @@
 import os
 import hmac
 import hashlib
+from pathlib import Path
 from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, Form, UploadFile, File
@@ -109,6 +110,28 @@ def get_admin_scans(
             "scanned_at": s.scanned_at.strftime("%Y-%m-%d %H:%M:%S") if s.scanned_at else ""
         })
     return result
+
+@router.get("/api/v1/admin/images")
+def get_admin_images(request: Request):
+    root = Path(settings.IMAGE_DIRECTORY)
+    folders = {}
+    if root.exists():
+        for path in root.rglob("*"):
+            if not path.is_file() or path.suffix.lower() not in {".jpg", ".jpeg", ".png", ".webp", ".heic"}:
+                continue
+            relative = path.relative_to(root).as_posix().split("/")
+            if len(relative) < 3:
+                user_id, device_id = "legacy", "unassigned"
+            else:
+                user_id, device_id = relative[0], relative[1]
+            key = f"{user_id}/{device_id}"
+            folders.setdefault(key, {"user_id": user_id, "device_id": device_id, "photos": []})
+            image_id = path.relative_to(root).as_posix()
+            folders[key]["photos"].append({
+                "name": path.name,
+                "url": ImageService.get_image_url(request, image_id),
+            })
+    return list(folders.values())
 
 @router.post("/api/v1/admin/scans/{scan_id}/approve")
 def admin_approve_scan(scan_id: int, db: Session = Depends(get_db)):
@@ -427,6 +450,23 @@ DASHBOARD_HTML = """<!DOCTYPE html>
         </div>
       </section>
 
+      <!-- STORED MOBILE PHOTOS -->
+      <section class="glass rounded-xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-folder-open text-teal-400"></i> Stored Mobile Photos
+            </h2>
+            <p class="text-xs text-slate-400">Grouped by username and device ID</p>
+          </div>
+          <span id="photo-folder-count" class="text-xs text-slate-400 font-mono">0 folders</span>
+        </div>
+        <div id="photo-folders" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+        <div id="photo-folders-empty" class="hidden py-8 text-center text-xs text-slate-500">
+          No uploaded mobile photos yet.
+        </div>
+      </section>
+
       <!-- SCAN & IMAGE GALLERY GRID -->
       <section>
         <div class="flex items-center justify-between mb-4">
@@ -572,6 +612,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <script>
     let allScans = [];
     let allInventory = [];
+    let photoFolders = [];
     let currentFilter = 'ALL';
     let adminToken = localStorage.getItem('shelf_admin_token') || '';
 
@@ -654,6 +695,12 @@ DASHBOARD_HTML = """<!DOCTYPE html>
           allInventory = await inventoryRes.json();
           renderInventory();
         }
+
+        const photosRes = await fetch('/api/v1/admin/images');
+        if (photosRes.ok) {
+          photoFolders = await photosRes.json();
+          renderPhotoFolders();
+        }
       } catch (e) {
         console.error("Failed to load dashboard data:", e);
       } finally {
@@ -702,6 +749,34 @@ DASHBOARD_HTML = """<!DOCTYPE html>
             `).join('')}
           </tbody>
         </table>`;
+    }
+
+    function renderPhotoFolders() {
+      const container = document.getElementById('photo-folders');
+      const emptyState = document.getElementById('photo-folders-empty');
+      document.getElementById('photo-folder-count').innerText = `${photoFolders.length} folders`;
+      if (!photoFolders.length) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+      emptyState.classList.add('hidden');
+      container.innerHTML = photoFolders.map(folder => `
+        <div class="rounded-xl border border-slate-800 bg-slate-900/60 p-3">
+          <div class="flex items-center gap-2 mb-3">
+            <i class="ph-bold ph-folder text-amber-400"></i>
+            <div>
+              <div class="text-sm font-semibold text-white">${escapeHtml(folder.user_id)}</div>
+              <div class="text-[11px] text-slate-500 font-mono">${escapeHtml(folder.device_id)} · ${folder.photos.length} photos</div>
+            </div>
+          </div>
+          <div class="grid grid-cols-3 gap-2">
+            ${folder.photos.map(photo => `
+              <a href="${escapeHtml(photo.url)}" target="_blank" class="block aspect-square overflow-hidden rounded-lg bg-slate-950" title="${escapeHtml(photo.name)}">
+                <img src="${escapeHtml(photo.url)}" alt="${escapeHtml(photo.name)}" class="h-full w-full object-cover hover:scale-105 transition-transform">
+              </a>`).join('')}
+          </div>
+        </div>`).join('');
     }
 
     function updateTabCounts() {
