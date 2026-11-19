@@ -410,6 +410,23 @@ DASHBOARD_HTML = """<!DOCTYPE html>
 
       </section>
 
+      <!-- CURRENT INVENTORY -->
+      <section class="glass rounded-xl p-5 border border-slate-800">
+        <div class="flex items-center justify-between mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-white flex items-center gap-2">
+              <i class="ph-bold ph-package text-emerald-400"></i> Mobile & Connected Device Inventory
+            </h2>
+            <p class="text-xs text-slate-400">Approved products from every client using this gateway</p>
+          </div>
+          <span id="inventory-count" class="text-xs text-slate-400 font-mono">0 items</span>
+        </div>
+        <div id="inventory-container" class="overflow-x-auto"></div>
+        <div id="inventory-empty" class="hidden py-8 text-center text-xs text-slate-500">
+          No approved inventory received yet.
+        </div>
+      </section>
+
       <!-- SCAN & IMAGE GALLERY GRID -->
       <section>
         <div class="flex items-center justify-between mb-4">
@@ -554,6 +571,7 @@ DASHBOARD_HTML = """<!DOCTYPE html>
   <!-- DASHBOARD JAVASCRIPT LOGIC -->
   <script>
     let allScans = [];
+    let allInventory = [];
     let currentFilter = 'ALL';
     let adminToken = localStorage.getItem('shelf_admin_token') || '';
 
@@ -629,11 +647,61 @@ DASHBOARD_HTML = """<!DOCTYPE html>
           updateTabCounts();
           renderScans();
         }
+
+        // Fetch current inventory from all connected clients.
+        const inventoryRes = await fetch('/api/v1/products');
+        if (inventoryRes.ok) {
+          allInventory = await inventoryRes.json();
+          renderInventory();
+        }
       } catch (e) {
         console.error("Failed to load dashboard data:", e);
       } finally {
         if (refreshIcon) refreshIcon.classList.remove('animate-spin');
       }
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[char]));
+    }
+
+    function renderInventory() {
+      const container = document.getElementById('inventory-container');
+      const emptyState = document.getElementById('inventory-empty');
+      document.getElementById('inventory-count').innerText = `${allInventory.length} items`;
+
+      if (allInventory.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
+        return;
+      }
+
+      emptyState.classList.add('hidden');
+      container.innerHTML = `
+        <table class="w-full text-left text-xs">
+          <thead class="text-slate-500 uppercase tracking-wider border-b border-slate-800">
+            <tr>
+              <th class="px-3 py-2">Product</th>
+              <th class="px-3 py-2">Category</th>
+              <th class="px-3 py-2">Expiry</th>
+              <th class="px-3 py-2">Location</th>
+              <th class="px-3 py-2">Barcode</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-800/80">
+            ${allInventory.map(product => `
+              <tr class="text-slate-300">
+                <td class="px-3 py-3 font-semibold text-white">${escapeHtml(product.name)}</td>
+                <td class="px-3 py-3">${escapeHtml(product.category)}</td>
+                <td class="px-3 py-3 text-amber-400">${escapeHtml(product.expiry_date)}</td>
+                <td class="px-3 py-3">${escapeHtml(product.location)}</td>
+                <td class="px-3 py-3 font-mono">${escapeHtml(product.barcode)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>`;
     }
 
     function updateTabCounts() {
