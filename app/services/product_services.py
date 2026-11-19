@@ -26,6 +26,8 @@ class ProductService:
             db_product.expiry_date = item.expiry_date
             db_product.location = item.location
             db_product.image_id = item.image_id
+            # Make newly inserted barcodes visible to the next item in this batch.
+            db.flush()
             synced += 1
         db.commit()
         return {"synced": synced}
